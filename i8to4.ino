@@ -1,4 +1,5 @@
 //8to4.ino
+//v.0.0.2
 /*
 Copyright (c) 2016 Ivan Prokofyev
 
@@ -31,46 +32,31 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 * входы одного канала не конкурируют между собой.
 
-* предусмотрен ручной режим, переход происходит при удержании нажатой любой кнопки в течении 2 сек (регулируется в коде, при изменении значения необходима новая компиляция и загрузка кода в МК), возврат в смешанный режим по такому же удержанию кнопки.
-
-* если питание будет потеряно во время работы МК в ручном режиме, то после перезапуска его выводы 4, 5, 6, 7 будут выставлены в состояния, которые были до отключения питания, ручной режим работы будет продолжен.
-
-* если питание будет потеряно в смешанном режиме, то при его восстановлении произойдет опрос выводов 8, 9, 10, 11 и в соответствии с их состояниями будут выставлены состояния управляющих выводов 4, 5, 6, 7.
+* при потере питания и после его восстановлении произойдет опрос выводов 8, 9, 10, 11 и в соответствии с их состояниями будут выставлены состояния управляющих выводов 4, 5, 6, 7.
 
 Предполагается работа с [Relay Shield](http://amperka.ru/product/arduino-relay-shield) и с
 [Iskra Neo](http://wiki.amperka.ru/_media/%D0%BF%D1%80%D0%BE%D0%B4%D1%83%D0%BA%D1%82%D1%8B:iskra-neo:iskra_neo_pinout.png).
 
 Для компиляции следует использовать [Arduino IDE от Arduino.org](http://www.arduino.org/downloads).
 
-Библиотеку EEPROM от Arduino.org заменить на такую же от Arduino.сс, просто в каталоге установки Arduino IDE от Arduino.сс найти эту библиотеку, скопировать и вставить взамен такой же, в каталоге установки Arduino IDE от Arduino.org.
-
 К выводам 0, 1, 2, 3 следует подсоединить моностабильные кнопки, которые обеспечат замыкание на GND.
 
 К выводам 8, 9, 10, 11 следует подсоединить сухие контакты, которые также обеспечат замыкание на GND.
 
-Скетч можно забрать прямым копипастом - [8to4.ino](https://github.com/itechnocrat/8to4/blob/master/8to4.ino) или забрать [архив](https://github.com/itechnocrat/8to4/archive/master.zip), вверху зеленая кнопка Clone or download.
-
-Проблема:  
-Не реализована возможность опроса выводов 8, 9, 10, 11 сразу после возврата из ручного режима.
+Скетч можно забрать прямым копипастом - [i8to4.ino](https://github.com/itechnocrat/i8to4/blob/master/i8to4.ino) или получить с [архивом](https://github.com/itechnocrat/i8to4/archive/master.zip), вверху зеленая кнопка Clone or download.
 */
 
 #include <Bounce2.h>
 // https://github.com/thomasfredericks/Bounce2/wiki
 
-#include <PMButton.h>
-// https://github.com/JCWentzel/PolymorphicButtons
-
-#include <EEPROM.h>
-// https://www.arduino.cc/en/Reference/EEPROM
-
-#define input_1 0 // 0 пин - вход 1го канала
-#define input_2 1 // 1 пин - вход 2го канала
-#define input_3 2 // 2 пин - вход 3го канала
-#define input_4 3 // 3 пин - вход 4го канала
-#define input_5 8 // 8 пин - вход 5го канала
-#define input_6 9 // 9 пин - вход 6го канала
-#define input_7 10 // 10 пин - вход 7го канала
-#define input_8 11 // 11 пин - вход 8го канала
+#define input_1 0 // 0 пин - 1ый вход 1го канала
+#define input_2 1 // 1 пин - 1ый вход 2го канала
+#define input_3 2 // 2 пин - 1ый вход 3го канала
+#define input_4 3 // 3 пин - 1ый вход 4го канала
+#define input_5 8 // 8 пин - 2ый вход 1го канала
+#define input_6 9 // 9 пин - 2ый вход 2го канала
+#define input_7 10 // 10 пин - 2ый вход 3го канала
+#define input_8 11 // 11 пин - 2ый вход 4го канала
 
 #define out_1 4 // 4 пин - выход 1го канала
 #define out_2 5 // 5 пин - выход 2го канала
@@ -88,10 +74,6 @@ bool value_out_4; // значение выхода 4го канала
 
 bool first_entry; // флаг первого прохождения кода
 
-bool manual_mode = false;
-
-byte all_state; // для упакованного значения состояний
-
 // создание экземпляров обработчика дребезга, по одному на вход:
 Bounce debouncer1 = Bounce();
 Bounce debouncer2 = Bounce();
@@ -102,12 +84,6 @@ Bounce debouncer6 = Bounce();
 Bounce debouncer7 = Bounce();
 Bounce debouncer8 = Bounce();
 
-// делаем кнопки многофункциональными
-PMButton button1(input_1);
-PMButton button2(input_2);
-PMButton button3(input_3);
-PMButton button4(input_4);
-
 void setup() {
   // назначение выходов:
   pinMode(out_1, OUTPUT);
@@ -115,17 +91,10 @@ void setup() {
   pinMode(out_3, OUTPUT);
   pinMode(out_4, OUTPUT);
 
-  // установка режимов работы выводов как входы
-  button1.begin();
-  button2.begin();
-  button3.begin();
-  button4.begin();
-  button1.holdTime(2000); // длительность нажатия для перехода в ручной режим и обратно ms
-
-  // pinMode(input_1, INPUT_PULLUP);
-  // pinMode(input_2, INPUT_PULLUP);
-  // pinMode(input_3, INPUT_PULLUP);
-  // pinMode(input_4, INPUT_PULLUP);
+  pinMode(input_1, INPUT_PULLUP);
+  pinMode(input_2, INPUT_PULLUP);
+  pinMode(input_3, INPUT_PULLUP);
+  pinMode(input_4, INPUT_PULLUP);
   pinMode(input_5, INPUT_PULLUP); // входы для выходов таймера:
   pinMode(input_6, INPUT_PULLUP);
   pinMode(input_7, INPUT_PULLUP);
@@ -151,22 +120,6 @@ void setup() {
   debouncer7.interval(10);
   debouncer8.interval(10);
 
-  // считать первый байт EEPROM,
-  // распаковать и разложить по переменным
-  all_state = EEPROM.read(0);
-  value_out_4 = bitRead(all_state, 0);
-  value_out_3 = bitRead(all_state, 1);
-  value_out_2 = bitRead(all_state, 2);
-  value_out_1 = bitRead(all_state, 3);
-  manual_mode = bitRead(all_state, 4);
-
-  if(manual_mode){
-    digitalWrite(out_1, value_out_1);
-    digitalWrite(out_2, value_out_2);
-    digitalWrite(out_3, value_out_3);
-    digitalWrite(out_4, value_out_4);
-  }
-
   first_entry = true; // если первый проход после старта, то надо один раз проверить состояние вторых входов каждого канала
 }
 
@@ -179,13 +132,8 @@ void loop() {
     }
   }
 
-  button1.checkSwitch();
-  if( button1.held() ){
-    manual_mode = !manual_mode;
-  }
-
 // обработка 1 выхода таймера
-  if ( (debouncer5.update() || first_entry) && !manual_mode) {
+  if ( debouncer5.update() || first_entry ) {
     value_out_1 = !debouncer5.read();
     digitalWrite( out_1, value_out_1 );
   }
@@ -199,13 +147,8 @@ void loop() {
      }
    }
 
-  button2.checkSwitch();
-  if( button2.held() ){
-    manual_mode = !manual_mode;
-  }
-
 // обработка 2 выхода таймера
-  if ( (debouncer6.update() || first_entry) && !manual_mode) {
+  if ( debouncer6.update() || first_entry ) {
     value_out_2 = !debouncer6.read();
     digitalWrite( out_2, value_out_2 );
   }
@@ -219,13 +162,8 @@ void loop() {
      }
    }
 
-  button3.checkSwitch();
-  if( button3.held() ){
-    manual_mode = !manual_mode;
-  }
-
 // обработка 3 выхода таймера
-  if ( (debouncer7.update() || first_entry) && !manual_mode) {
+  if ( debouncer7.update() || first_entry ) {
     value_out_3 = !debouncer7.read();
     digitalWrite( out_3, value_out_3 );
   }
@@ -239,23 +177,12 @@ void loop() {
      }
    }
 
-  button4.checkSwitch();
-  if( button4.held() ){
-    manual_mode = !manual_mode;
-  }
-
 // обработка 4 выхода таймера
-  if ( (debouncer8.update() || first_entry) && !manual_mode) {
+  if ( debouncer8.update() || first_entry ) {
     value_out_4 = !debouncer8.read();
     digitalWrite( out_4, value_out_4 );
   }
 // ---------------------------------------------------------------------------------------------------------------
-
-  // упаковать значения выходов,
-  // если значение отличное от уже имеющегося в EEPROM, то
-  // записать значение в EEPROM
-  all_state = (manual_mode << 4) | (value_out_1 << 3) | (value_out_2 << 2) | (value_out_3 << 1) | value_out_4;
-  EEPROM.update(0, all_state);
 
   if(first_entry) first_entry = false;
 
