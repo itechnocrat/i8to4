@@ -49,14 +49,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <Bounce2.h>
 // https://github.com/thomasfredericks/Bounce2/wiki
 
-#define input_1 0 // 0 пин - вход 1го канала
-#define input_2 1 // 1 пин - вход 2го канала
-#define input_3 2 // 2 пин - вход 3го канала
-#define input_4 3 // 3 пин - вход 4го канала
-#define input_5 8 // 8 пин - вход 5го канала
-#define input_6 9 // 9 пин - вход 6го канала
-#define input_7 10 // 10 пин - вход 7го канала
-#define input_8 11 // 11 пин - вход 8го канала
+#define input_1 0 // 0 пин - 1ый вход 1го канала
+#define input_2 1 // 1 пин - 1ый вход 2го канала
+#define input_3 2 // 2 пин - 1ый вход 3го канала
+#define input_4 3 // 3 пин - 1ый вход 4го канала
+#define input_5 8 // 8 пин - 2ый вход 1го канала
+#define input_6 9 // 9 пин - 2ый вход 2го канала
+#define input_7 10 // 10 пин - 2ый вход 3го канала
+#define input_8 11 // 11 пин - 2ый вход 4го канала
 
 #define out_1 4 // 4 пин - выход 1го канала
 #define out_2 5 // 5 пин - выход 2го канала
